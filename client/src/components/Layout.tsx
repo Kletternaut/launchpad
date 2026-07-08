@@ -4,8 +4,8 @@ import { usePageActions } from '@/contexts/PageActionsContext';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui';
 
-function LaunchrLogoMark() {
-  return <img src="/favicon.svg" width={28} height={28} alt="Launchr" className="shrink-0" />;
+function LaunchpadLogoMark() {
+  return <img src="/favicon.svg" width={28} height={28} alt="Launchpad" className="shrink-0" />;
 }
 
 function DashboardIcon() {
@@ -47,9 +47,9 @@ export default function Layout() {
       >
         <div className="w-full px-5 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5" style={{ textDecoration: 'none' }}>
-            <LaunchrLogoMark />
+            <LaunchpadLogoMark />
             <span className="text-xl font-extrabold tracking-tight gradient-text select-none">
-              Launchr
+              Launchpad
             </span>
           </Link>
           <nav className="flex items-center gap-2">

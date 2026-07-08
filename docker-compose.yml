@@ -1,11 +1,11 @@
 services:
-  launchr:
-    image: larsmikki/launchr:latest
-    container_name: launchr
+  launchpad:
+    image: larsmikki/launchpad:latest
+    container_name: launchpad
     ports:
       - "3020:3020"
     volumes:
-      - launchr-data:/app/data
+      - launchpad-data:/app/data
     restart: always
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3020/api/settings"]
@@ -14,4 +14,4 @@ services:
       retries: 3
 
 volumes:
-  launchr-data:
+  launchpad-data:

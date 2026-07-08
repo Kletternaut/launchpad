@@ -1,5 +1,5 @@
 {
-  "name": "launchr-server",
+  "name": "launchpad-server",
   "private": true,
   "type": "module",
   "scripts": {

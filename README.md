@@ -1,13 +1,13 @@
-# Launchr
+# Launchpad
 
 A lightweight, self-hosted web launcher. Organize your bookmarks into a drag-and-drop grid with collapsible groups and auto-fetched favicons.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Docker Hub](https://img.shields.io/badge/Docker%20Hub-larsmikki%2Flaunchr-blue?logo=docker)](https://hub.docker.com/r/larsmikki/launchr)
-[![ghcr.io](https://img.shields.io/badge/ghcr.io-larsmikki%2Flaunchr-blue?logo=github)](https://github.com/larsmikki/launchr/pkgs/container/launchr)
-[![Last Commit](https://img.shields.io/github/last-commit/larsmikki/launchr)](https://github.com/larsmikki/launchr/commits/main)
+[![Docker Hub](https://img.shields.io/badge/Docker%20Hub-larsmikki%2Flaunchpad-blue?logo=docker)](https://hub.docker.com/r/larsmikki/launchpad)
+[![ghcr.io](https://img.shields.io/badge/ghcr.io-larsmikki%2Flaunchpad-blue?logo=github)](https://github.com/larsmikki/launchpad/pkgs/container/launchpad)
+[![Last Commit](https://img.shields.io/github/last-commit/larsmikki/launchpad)](https://github.com/larsmikki/launchpad/commits/main)
 
-![Launchr screenshot](screenshot.png)
+![Launchpad screenshot](screenshot.png)
 
 ## Getting started
 
@@ -19,17 +19,17 @@ Works on Synology, Unraid, TrueNAS, QNAP, Proxmox, or a plain Docker host.
 
 ```bash
 docker run -d \
-  --name launchr \
+  --name launchpad \
   -p 3020:3020 \
-  -v launchr-data:/app/data \
+  -v launchpad-data:/app/data \
   --restart unless-stopped \
-  larsmikki/launchr:latest
+  larsmikki/launchpad:latest
 ```
 
 Or pull the published Compose file:
 
 ```bash
-curl -O https://raw.githubusercontent.com/larsmikki/launchr/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/larsmikki/launchpad/main/docker-compose.yml
 docker compose up -d
 ```
 
@@ -38,8 +38,8 @@ docker compose up -d
 Requires [Git for Windows](https://git-scm.com/download/win) and [Node.js 20+](https://nodejs.org/).
 
 ```powershell
-git clone https://github.com/larsmikki/launchr.git
-cd launchr
+git clone https://github.com/larsmikki/launchpad.git
+cd launchpad
 npm run setup
 npm run dev
 ```
@@ -50,8 +50,8 @@ For a production build: `npm run build && npm start`.
 
 ```bash
 brew install node git
-git clone https://github.com/larsmikki/launchr.git
-cd launchr
+git clone https://github.com/larsmikki/launchpad.git
+cd launchpad
 npm run setup
 npm run dev
 ```
@@ -66,8 +66,8 @@ Debian/Ubuntu:
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt-get install -y nodejs git
 
-git clone https://github.com/larsmikki/launchr.git
-cd launchr
+git clone https://github.com/larsmikki/launchpad.git
+cd launchpad
 npm run setup
 npm run dev
 ```
@@ -105,7 +105,7 @@ For a production build: `npm run build && npm start`.
 
 ## Data Persistence
 
-Data is stored in a Docker volume (`launchr-data`) at `/app/data` inside the container. Back up via Settings → Export, or copy the volume contents directly.
+Data is stored in a Docker volume (`launchpad-data`) at `/app/data` inside the container. Back up via Settings → Export, or copy the volume contents directly.
 
 ## Tech Stack
 
@@ -116,10 +116,10 @@ Data is stored in a Docker volume (`launchr-data`) at `/app/data` inside the con
 
 ## Support
 
-If you find Launchr useful, consider [buying me a coffee](https://buymeacoffee.com/larsmikki). Launchr is and always will be free, open source, and self-hosted.
+If you find Launchpad useful, consider [buying me a coffee](https://buymeacoffee.com/larsmikki). Launchpad is and always will be free, open source, and self-hosted.
 
-## Upgrading from Linkpad
+## Upgrading from Launchr
 
-The app was renamed to Launchr. One breaking change affects existing deployments:
+The app was renamed to Launchpad. One breaking change affects existing deployments:
 
-- **Docker volume**: the named volume changed from `linkpad-data` to `launchr-data`. Copy volume contents to the new volume before redeploying, or re-enter data from the UI. The storage file (`data.db`) and env var (`DATA_DIR`) are unchanged.
+- **Docker volume**: the named volume changed from `launchr-data` to `launchpad-data`. Copy volume contents to the new volume before redeploying, or re-enter data from the UI. The storage file (`data.db`) and env var (`DATA_DIR`) are unchanged.
