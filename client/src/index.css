@@ -79,7 +79,8 @@ button:disabled {
 }
 
 .shortcut-tile {
-  min-width: 76px;
+  width: 76px;
+  flex: 0 0 76px;
   padding: 10px 6px;
   border-radius: 12px;
   display: flex;
@@ -140,7 +141,7 @@ button:disabled {
 }
 
 .shortcut-title {
-  max-width: 80px;
+  width: 100%;
   overflow-wrap: break-word;
   word-break: break-word;
   color: var(--theme-text2);
