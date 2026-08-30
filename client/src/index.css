@@ -7,23 +7,34 @@ html,body,#root{min-height:100%;width:100%}
 body{margin:0;background:Canvas;color:CanvasText;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
 button,input,select{font:inherit}
 
-.bookmark-launcher{min-height:70vh}
-.launcher-toolbar{display:flex;align-items:center;gap:12px;border-bottom:1px solid color-mix(in srgb,CanvasText 18%,Canvas);padding:0 0 12px;margin-bottom:16px;flex-wrap:wrap}
-.launcher-brand{margin-right:auto}.launcher-title{font-size:18px;font-weight:750}.launcher-subtitle{font-size:11px;color:GrayText;margin-top:2px}
-.launcher-search{width:min(280px,42vw);min-width:150px;background:Canvas;border:1px solid color-mix(in srgb,CanvasText 22%,Canvas);border-radius:7px;color:CanvasText;padding:7px 10px;outline:none}.launcher-search:focus{border-color:Highlight}
+.bookmark-launcher{width:100%;min-height:70vh}
+.launcher-toolbar{display:flex;align-items:center;gap:10px;border-bottom:1px solid color-mix(in srgb,CanvasText 22%,Canvas);padding:0 0 9px;margin-bottom:12px;flex-wrap:wrap}
+.launcher-brand{margin-right:auto;min-width:0}.launcher-title{font-size:18px;font-weight:700;line-height:1.1}.launcher-subtitle{font-size:12px;color:GrayText;margin-top:2px}
+.launcher-search{width:250px;min-width:150px;background:Canvas;border:1px solid color-mix(in srgb,CanvasText 22%,Canvas);border-radius:5px;color:CanvasText;padding:6px 9px;outline:none}.launcher-search:focus{border-color:Highlight}
 .launcher-actions{display:flex;gap:6px;flex-wrap:wrap}
-.launcher-empty{padding:50px 20px;text-align:center;color:GrayText;border:1px dashed color-mix(in srgb,CanvasText 22%,Canvas);border-radius:10px}
-.bookmark-category{margin:0 0 20px;border:1px solid color-mix(in srgb,CanvasText 20%,Canvas);border-radius:7px;overflow:hidden;background:Canvas}
-.category-header{display:flex;align-items:center;gap:6px;min-height:34px;padding:5px 8px;background:ButtonFace;color:ButtonText;border-bottom:1px solid color-mix(in srgb,CanvasText 18%,Canvas)}
-.category-header[draggable=true]{cursor:grab}.category-header[draggable=true]:active{cursor:grabbing}.collapse-btn{background:transparent;color:inherit;padding:1px 3px;border-radius:4px}.collapse-btn:hover{background:color-mix(in srgb,CanvasText 10%,transparent)}
-.category-drag{color:GrayText;letter-spacing:-3px;padding:0 3px}.category-name{font-size:13px;font-weight:700;flex:1;min-width:0}.category-count{font-size:10px;color:GrayText}
-.category-header>button:not(.collapse-btn),.tile-tools button,.bookmark-tools button{padding:1px 5px;background:transparent;color:inherit;border-radius:4px;font-size:11px}.category-header>button:hover,.tile-tools button:hover,.bookmark-tools button:hover{background:Highlight;color:HighlightText}.danger{color:rgb(190 0 0)!important}
-.tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;padding:10px;align-items:start}
-.bookmark-tile{border:1px solid color-mix(in srgb,CanvasText 17%,Canvas);border-radius:6px;background:Canvas;overflow:hidden;min-width:0}.bookmark-tile[draggable=true]{cursor:grab}.bookmark-tile[draggable=true]:active{cursor:grabbing}
-.tile-header{display:flex;align-items:center;gap:5px;padding:7px 9px;background:color-mix(in srgb,ButtonFace 72%,Canvas);border-bottom:1px solid color-mix(in srgb,CanvasText 15%,Canvas);font-size:12px;font-weight:700}.tile-header>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
-.tile-tools{display:flex;gap:2px}.bookmark-list{padding:3px 0;min-height:8px}
-.bookmark-row{display:flex;align-items:center;gap:6px;min-height:29px;padding:3px 7px}.bookmark-row[draggable=true]{cursor:grab}.bookmark-row[draggable=true]:active{cursor:grabbing}.bookmark-row:hover{background:Highlight;color:HighlightText}.bookmark-row>a{display:flex;align-items:center;gap:7px;color:inherit;text-decoration:none;min-width:0;flex:1}.bookmark-icon{width:18px;height:18px;min-width:18px;border-radius:3px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:color-mix(in srgb,CanvasText 10%,Canvas);font-size:10px;font-weight:700}.bookmark-icon img{width:18px;height:18px;object-fit:contain}.bookmark-name{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bookmark-tools{display:flex;gap:2px;flex-shrink:0}
-.add-bookmark,.add-tile{margin:5px 7px 7px;padding:5px 8px;background:transparent;color:GrayText;border:1px dashed color-mix(in srgb,CanvasText 25%,Canvas);border-radius:5px;font-size:11px}.add-bookmark{width:calc(100% - 14px)}.add-bookmark:hover,.add-tile:hover{color:CanvasText;border-color:Highlight}.add-tile{min-height:80px;width:100%;margin:0;border-radius:6px}
-.launcher-modal{position:fixed;inset:0;background:rgb(0 0 0 / .55);z-index:100;display:flex;align-items:center;justify-content:center;padding:15px}.launcher-modal form{width:min(520px,100%);background:Canvas;color:CanvasText;border:1px solid color-mix(in srgb,CanvasText 25%,Canvas);border-radius:9px;padding:17px;box-shadow:0 20px 60px rgb(0 0 0 / .35)}.launcher-modal h2{margin:0 0 14px;font-size:16px}.launcher-modal label{display:block;font-size:11px;color:GrayText;margin:9px 0}.launcher-modal input,.launcher-modal select{display:block;width:100%;margin-top:4px;padding:8px;border:1px solid color-mix(in srgb,CanvasText 22%,Canvas);border-radius:6px;background:Canvas;color:CanvasText}.modal-actions{display:flex;justify-content:flex-end;gap:7px;margin-top:16px}
-@media(max-width:700px){.launcher-search{width:100%;order:3}.launcher-actions{width:100%}.tile-grid{grid-template-columns:1fr}.bookmark-category{border-radius:5px}}
-@media(prefers-color-scheme:dark){.bookmark-category,.bookmark-tile{background:Canvas}.category-header{background:ButtonFace}}
+.launcher-empty{padding:30px 20px;text-align:center;color:GrayText;border:1px dashed color-mix(in srgb,CanvasText 22%,Canvas);border-radius:5px}
+
+.bookmark-category{margin:0 0 18px;border:1px solid color-mix(in srgb,CanvasText 22%,Canvas);border-radius:3px;overflow:hidden;background:Canvas;box-shadow:none}
+.category-header{display:flex;align-items:center;gap:5px;min-height:30px;padding:4px 7px;background:ButtonFace;color:ButtonText;border-bottom:1px solid color-mix(in srgb,CanvasText 22%,Canvas)}
+.category-header[draggable=true]{cursor:grab}.category-header[draggable=true]:active{cursor:grabbing}
+.collapse-btn{background:transparent;color:inherit;border:0;padding:1px 2px;line-height:1;border-radius:3px}.collapse-btn:hover{background:color-mix(in srgb,CanvasText 10%,transparent)}
+.category-drag{color:GrayText;letter-spacing:-3px;padding:1px 3px;user-select:none}.category-name{font-size:13px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.category-count{font-size:10px;color:GrayText}
+.category-header>button:not(.collapse-btn),.tile-tools button,.bookmark-tools button{padding:1px 5px;background:transparent;color:inherit;border:1px solid transparent;border-radius:4px;font-size:10px;line-height:1.2}.category-header>button:hover,.tile-tools button:hover,.bookmark-tools button:hover{background:Highlight;color:HighlightText}
+.danger{color:rgb(180 0 0)!important}
+
+.tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:9px;padding:8px;align-items:start}
+.bookmark-tile{border:1px solid color-mix(in srgb,CanvasText 22%,Canvas);border-radius:3px;background:Canvas;overflow:hidden;min-width:0;box-shadow:none}.bookmark-tile[draggable=true]{cursor:grab}.bookmark-tile[draggable=true]:active{cursor:grabbing}
+.tile-header{display:flex;align-items:center;gap:5px;padding:5px 7px;background:ButtonFace;color:ButtonText;border-bottom:1px solid color-mix(in srgb,CanvasText 18%,Canvas);font-size:12px;font-weight:700;min-height:25px}.tile-header>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.tile-tools{display:flex;gap:2px}
+.bookmark-list{padding:2px 0;min-height:8px}
+.bookmark-row{display:flex;align-items:center;gap:6px;min-height:24px;padding:2px 7px;font-size:12px}.bookmark-row[draggable=true]{cursor:grab}.bookmark-row[draggable=true]:active{cursor:grabbing}.bookmark-row:hover{background:Highlight;color:HighlightText}
+.bookmark-row>a{display:flex;align-items:center;gap:6px;color:inherit;text-decoration:none;min-width:0;flex:1}
+.bookmark-icon{width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:transparent;font-size:10px;font-weight:700}.bookmark-icon img{width:16px;height:16px;object-fit:contain}.bookmark-name{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bookmark-tools{display:flex;gap:2px;flex-shrink:0}
+
+.add-bookmark,.add-tile{margin:4px 6px 6px;padding:4px 7px;background:transparent;color:GrayText;border:1px dashed color-mix(in srgb,CanvasText 25%,Canvas);border-radius:4px;font-size:10px}.add-bookmark{width:calc(100% - 12px)}.add-bookmark:hover,.add-tile:hover{color:CanvasText;border-color:Highlight}.add-tile{min-height:60px;width:100%;margin:0;border-radius:3px}
+
+.launcher-modal{position:fixed;inset:0;background:rgb(0 0 0 / .55);z-index:100;display:flex;align-items:center;justify-content:center;padding:15px}.launcher-modal form{width:min(520px,100%);background:Canvas;color:CanvasText;border:1px solid color-mix(in srgb,CanvasText 25%,Canvas);border-radius:6px;padding:16px;box-shadow:0 20px 60px rgb(0 0 0 / .35)}.launcher-modal h2{margin:0 0 12px;font-size:16px}.launcher-modal label{display:block;font-size:11px;color:GrayText;margin:8px 0}.launcher-modal input,.launcher-modal select{display:block;width:100%;margin-top:4px;padding:7px;border:1px solid color-mix(in srgb,CanvasText 22%,Canvas);border-radius:5px;background:Canvas;color:CanvasText}.modal-actions{display:flex;justify-content:flex-end;gap:7px;margin-top:14px}
+
+@media(max-width:700px){.launcher-search{width:100%;order:3}.launcher-actions{width:100%}.tile-grid{grid-template-columns:1fr}.bookmark-category{border-radius:3px}}
+@media(prefers-color-scheme:dark){.bookmark-category,.bookmark-tile{background:Canvas}.category-header,.tile-header{background:ButtonFace}}
