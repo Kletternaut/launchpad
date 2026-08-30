@@ -5,7 +5,7 @@
   <Package
       Name="Kletternaut Launchpad"
       Manufacturer="Kletternaut"
-      Version="$(var.ProductVersion)"
+      Version="$(ProductVersion)"
       UpgradeCode="7B4D1E8C-2F7D-4D88-9B44-6D4C6D7A0A31"
       Scope="perMachine"
       Compressed="yes">
