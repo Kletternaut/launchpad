@@ -2,6 +2,9 @@ name: Windows MSI
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - sw-wetter-lan-windows
 
 permissions:
   contents: read
@@ -17,28 +20,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
-
       - name: Install dependencies
         shell: pwsh
         run: npm ci
-
       - name: Build client and server
         run: npm run build
-
       - name: Run server tests
         run: npm test
-
       - name: Prepare application payload
         shell: pwsh
         run: |
@@ -48,17 +45,10 @@ jobs:
           Copy-Item -Recurse -Force server/dist "$payload/app/server/dist"
           Copy-Item server/package.json "$payload/app/server/package.json"
           Push-Location "$payload/app/server"
-          try {
-            npm install --omit=dev --ignore-scripts=false --no-package-lock
-          }
-          finally {
-            Pop-Location
-          }
-
+          try { npm install --omit=dev --ignore-scripts=false --no-package-lock } finally { Pop-Location }
       - name: Publish Windows service
         shell: pwsh
         run: dotnet publish windows-service/LaunchpadService.csproj -c Release -r win-x64 --self-contained true -o "$env:GITHUB_WORKSPACE/payload/service"
-
       - name: Download pinned Node.js runtime
         shell: pwsh
         run: |
@@ -71,38 +61,21 @@ jobs:
           Invoke-WebRequest -Uri $url -OutFile $zip
           Invoke-WebRequest -Uri $shaUrl -OutFile $shaFile
           $expected = $null
-          foreach ($line in Get-Content -Path $shaFile -Encoding ascii) {
-            if ($line -match '^(?<hash>[0-9a-fA-F]{64})\s+\*?' + [regex]::Escape($archive) + '$') {
-              $expected = $Matches['hash']
-              break
-            }
-          }
+          foreach ($line in Get-Content -Path $shaFile -Encoding ascii) { if ($line -match '^(?<hash>[0-9a-fA-F]{64})\s+\*?' + [regex]::Escape($archive) + '$') { $expected = $Matches['hash']; break } }
           if ([string]::IsNullOrWhiteSpace($expected)) { throw "Could not find Node.js archive checksum for $archive." }
           $actual = (Get-FileHash -Algorithm SHA256 -Path $zip).Hash
           if (-not [string]::Equals($actual, $expected, [StringComparison]::OrdinalIgnoreCase)) { throw "Node.js archive checksum mismatch." }
           $runtimeRoot = Join-Path $env:RUNNER_TEMP 'node-runtime'
           Expand-Archive -Path $zip -DestinationPath $runtimeRoot
           Copy-Item (Join-Path $runtimeRoot "node-v$version-win-x64/node.exe") (Join-Path $env:GITHUB_WORKSPACE 'payload/runtime/node.exe')
-
       - name: Validate runtime payload
         shell: pwsh
         run: |
           $payload = Join-Path $env:GITHUB_WORKSPACE 'payload'
-          foreach ($path in @(
-            "$payload/app/server/dist/index.js",
-            "$payload/app/server/node_modules/sql.js/package.json",
-            "$payload/app/client/dist/index.html",
-            "$payload/runtime/node.exe",
-            "$payload/service/LaunchpadService.exe",
-            "$payload/service/appsettings.json"
-          )) {
-            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Required payload file is missing: $path" }
-          }
-
+          foreach ($path in @("$payload/app/server/dist/index.js","$payload/app/server/node_modules/sql.js/package.json","$payload/app/client/dist/index.html","$payload/runtime/node.exe","$payload/service/LaunchpadService.exe","$payload/service/appsettings.json")) { if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Required payload file is missing: $path" } }
       - name: Build MSI
         shell: pwsh
         run: dotnet build windows-service/installer/LaunchpadInstaller.wixproj -c Release -p:PayloadRoot="$env:GITHUB_WORKSPACE/payload" -p:InstallerPlatform=x64 -p:ProductVersion=0.1.0.0
-
       - name: Upload MSI
         uses: actions/upload-artifact@v7
         with:
