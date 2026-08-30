@@ -1,29 +1,44 @@
-# Windows installer
+# Windows MSI installer
 
-This directory is reserved for the Windows MSI installer definition.
+The installer is built with WiX Toolset 7.
 
-## Design requirements
+## Design
 
 - Windows 11 x64.
 - No Docker.
-- No global Node.js dependency at runtime.
-- The Windows service is published self-contained.
-- The Launchpad Node runtime is provisioned by the installer/build pipeline, not assumed from PATH.
-- Installation and data locations are installer properties; they are never hard-coded into application source.
-- Personal bookmarks, databases, icons and backups are runtime data and must never be packaged into source control.
+- The .NET Windows service is self-contained.
+- The Node.js runtime is bundled by the build pipeline; the installed service does not depend on a global `node.exe` in `PATH`.
+- The MSI installs application files under the user-selected installation directory.
+- Runtime data is outside the application payload and is never committed to Git.
+- The MSI registers the service with the Windows Service Control Manager and removes the service on uninstall.
 
-## Test installation
+## Build contract
 
-The first installer test must be performed on a clean Windows 11 test account or VM.
+The MSI build consumes a prepared `PayloadRoot` directory.
 
-The test must verify:
+Expected payload:
+
+```text
+PayloadRoot/
+  service/LaunchpadService.exe
+  runtime/node.exe
+  app/client/...
+  app/server/...
+```
+
+The build pipeline is responsible for producing and validating this payload before invoking WiX.
+
+## Test gate
+
+Do not use this branch for real bookmarks until the CI workflow has produced an MSI successfully and the MSI has passed installation tests on Windows 11.
+
+The first manual test must verify:
 
 1. MSI installs successfully.
-2. The service is registered with the Windows Service Control Manager.
-3. Service start/stop/restart works.
-4. The application starts without a globally installed Node.js runtime.
-5. The selected data directory is used.
-6. No Docker process is installed or started.
-7. Uninstall removes application/service files but does not silently delete the configured data directory.
-
-The MSI itself will be added once the build pipeline can produce and validate the required application payload reproducibly.
+2. Installation directory can be selected.
+3. Service `KletternautLaunchpad` is registered.
+4. Service starts and stops cleanly.
+5. Application starts without a global Node.js installation.
+6. Data location is outside the application payload.
+7. No Docker component is installed or started.
+8. Uninstall removes application/service files without silently deleting user data.
