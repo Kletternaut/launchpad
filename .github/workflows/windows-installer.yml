@@ -52,8 +52,8 @@ jobs:
         run: |
           $payload = Join-Path $env:GITHUB_WORKSPACE 'payload'
           New-Item -ItemType Directory -Force -Path "$payload/app/client", "$payload/app/server", "$payload/runtime" | Out-Null
-          Copy-Item -Recurse -Force client/dist "$payload/app/client"
-          Copy-Item -Recurse -Force server/dist "$payload/app/server"
+          Copy-Item -Recurse -Force client/dist "$payload/app/client/dist"
+          Copy-Item -Recurse -Force server/dist "$payload/app/server/dist"
           Copy-Item -Recurse -Force server/node_modules "$payload/app/server/node_modules"
           Copy-Item server/package.json "$payload/app/server/package.json"
 
@@ -81,6 +81,17 @@ jobs:
           $runtimeRoot = Join-Path $env:RUNNER_TEMP 'node-runtime'
           Expand-Archive -Path $zip -DestinationPath $runtimeRoot
           Copy-Item (Join-Path $runtimeRoot "node-v$version-win-x64/node.exe") (Join-Path $env:GITHUB_WORKSPACE 'payload/runtime/node.exe')
+
+      - name: Validate runtime payload
+        shell: pwsh
+        run: |
+          $entry = Join-Path $env:GITHUB_WORKSPACE 'payload/app/server/dist/index.js'
+          $client = Join-Path $env:GITHUB_WORKSPACE 'payload/app/client/dist/index.html'
+          $node = Join-Path $env:GITHUB_WORKSPACE 'payload/runtime/node.exe'
+          $service = Join-Path $env:GITHUB_WORKSPACE 'payload/service/LaunchpadService.exe'
+          foreach ($path in @($entry, $client, $node, $service)) {
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Required payload file is missing: $path" }
+          }
 
       - name: Build MSI
         shell: pwsh
