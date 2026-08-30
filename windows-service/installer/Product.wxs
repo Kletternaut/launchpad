@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
-     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
   <Package
       Name="Kletternaut Launchpad"
       Manufacturer="Kletternaut"
@@ -17,7 +18,10 @@
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="APPLICATIONFOLDER" Name="Kletternaut">
-        <Directory Id="INSTALLFOLDER" Name="Launchpad" />
+        <Directory Id="INSTALLFOLDER" Name="Launchpad">
+          <Directory Id="APPFOLDER" Name="app" />
+          <Directory Id="RUNTIMEFOLDER" Name="runtime" />
+        </Directory>
       </Directory>
     </StandardDirectory>
 
@@ -29,7 +33,7 @@
 
     <DirectoryRef Id="INSTALLFOLDER">
       <Component Id="LaunchpadServiceComponent" Guid="*">
-        <File Id="LaunchpadServiceExe" Source="$(var.PayloadRoot)\\service\\LaunchpadService.exe" KeyPath="yes" />
+        <File Id="LaunchpadServiceExe" Source="!(bindpath.PayloadRoot)\service\LaunchpadService.exe" KeyPath="yes" />
         <ServiceInstall
             Id="LaunchpadServiceInstall"
             Name="KletternautLaunchpad"
@@ -37,7 +41,15 @@
             Description="Kletternaut Launchpad bookmark service"
             Start="auto"
             Type="ownProcess"
-            ErrorControl="normal" />
+            Account="NT AUTHORITY\LocalService"
+            ErrorControl="normal">
+          <util:ServiceConfig
+              FirstFailureActionType="restart"
+              SecondFailureActionType="restart"
+              ThirdFailureActionType="restart"
+              RestartServiceDelayInSeconds="10"
+              ResetPeriodInDays="1" />
+        </ServiceInstall>
         <ServiceControl
             Id="LaunchpadServiceControl"
             Name="KletternautLaunchpad"
@@ -46,6 +58,14 @@
             Remove="uninstall"
             Wait="yes" />
       </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="APPFOLDER">
+      <Files Include="!(bindpath.PayloadRoot)\app\**" />
+    </DirectoryRef>
+
+    <DirectoryRef Id="RUNTIMEFOLDER">
+      <Files Include="!(bindpath.PayloadRoot)\runtime\**" />
     </DirectoryRef>
 
     <DirectoryRef Id="LAUNCHPADDATA">
