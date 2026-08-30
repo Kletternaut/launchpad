@@ -7,6 +7,7 @@ import os from 'os';
 const TEST_DATA_DIR = path.join(os.tmpdir(), 'test-data');
 
 beforeAll(async () => {
+  fs.mkdirSync(TEST_DATA_DIR, { recursive: true });
   await initDb();
 });
 
