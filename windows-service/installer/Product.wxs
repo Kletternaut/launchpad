@@ -70,7 +70,16 @@
 
     <DirectoryRef Id="LAUNCHPADDATA">
       <Component Id="DataDirectoryComponent" Guid="*">
-        <CreateFolder />
+        <CreateFolder>
+          <util:PermissionEx
+              User="NT AUTHORITY\LocalService"
+              CreateChild="yes"
+              CreateFile="yes"
+              DeleteChild="yes"
+              Read="yes"
+              Traverse="yes"
+              Write="yes" />
+        </CreateFolder>
       </Component>
     </DirectoryRef>
 
