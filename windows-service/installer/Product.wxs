@@ -55,16 +55,10 @@
       </Component>
     </DirectoryRef>
 
-    <DirectoryRef Id="APPFOLDER">
-      <Files Include="!(bindpath.PayloadRoot)\app\**" />
-    </DirectoryRef>
-
-    <DirectoryRef Id="RUNTIMEFOLDER">
-      <Files Include="!(bindpath.PayloadRoot)\runtime\**" />
-    </DirectoryRef>
-
     <Feature Id="MainFeature" Title="Kletternaut Launchpad" Level="1">
       <ComponentRef Id="LaunchpadServiceComponent" />
+      <Files Include="!(bindpath.PayloadRoot)\app\**" Directory="APPFOLDER" />
+      <Files Include="!(bindpath.PayloadRoot)\runtime\**" Directory="RUNTIMEFOLDER" />
     </Feature>
   </Package>
 </Wix>
