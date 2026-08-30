@@ -6,8 +6,8 @@ import { log } from './logger.js';
 async function main() {
   await initDb();
   const app = createApp();
-  app.listen(config.port, () => {
-    log.info(`Launchpad server running on http://localhost:${config.port}`);
+  app.listen(config.port, config.host, () => {
+    log.info(`Launchpad server running on http://${config.host}:${config.port}`);
   });
 
   // Database writes are debounced — flush pending changes on shutdown
