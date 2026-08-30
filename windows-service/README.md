@@ -4,9 +4,9 @@ This directory provides a Windows Service host for Launchpad. The service is sep
 
 ## Privacy boundary
 
-The Git repository contains application source only. Do **not** commit `server/data`, `*.db`, icon caches, Brave bookmark exports, or backups. The runtime data directory is outside the repository:
+The Git repository contains application source only. Do **not** commit `server/data`, `*.db`, icon caches, Brave bookmark exports, or backups.
 
-`C:\ProgramData\Kletternaut\Launchpad\data`
+Runtime data is kept outside the repository. By default the service uses the Windows `CommonApplicationData` known folder and derives its application-specific subdirectory at runtime. The location can be overridden with the `LAUNCHPAD_DATA_DIR` environment variable or `Launchpad:DataDirectory` in the service configuration.
 
 ## Service control
 
@@ -22,15 +22,20 @@ Windows is responsible for service startup and recovery. The service host additi
 
 ## Configuration
 
-Edit `C:\ProgramData\Kletternaut\Launchpad\service\appsettings.json` and restart the service. Important values include:
+`appsettings.json` is deployed next to the Windows service executable. Relative paths are resolved from `AppContext.BaseDirectory`; Windows environment variables are expanded before use.
 
-- `NodeExecutable`
-- `WorkingDirectory`
-- `Arguments`
-- `RestartDelaySeconds`
-- `MaxRestarts`
-- `PORT`
-- `DATA_DIR`
-- `ALLOWED_ORIGINS`
+Important values include:
+
+- `Launchpad:ApplicationDirectory`
+- `Launchpad:NodeExecutable`
+- `Launchpad:Arguments`
+- `Launchpad:DataDirectory`
+- `Launchpad:RestartDelaySeconds`
+- `Launchpad:MaxRestarts`
+- `Launchpad:Environment:PORT`
+- `Launchpad:Environment:HOST`
+- `Launchpad:Environment:ALLOWED_ORIGINS`
+
+`LAUNCHPAD_DATA_DIR` takes precedence over the JSON data-directory setting. The service passes the resolved directory to the Node application as `DATA_DIR`.
 
 No bookmark data is needed during development or GitHub builds.
