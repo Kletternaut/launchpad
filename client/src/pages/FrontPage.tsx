@@ -1,324 +1,49 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Shortcut, Group } from '@/types';
-import { useAppData } from '@/hooks/useAppData';
-import { useDragDrop } from '@/hooks/useDragDrop';
-import GroupBox from '@/components/GroupBox';
-import ShortcutDialog from '@/components/ShortcutDialog';
-import GroupDialog from '@/components/GroupDialog';
-import ContextMenu from '@/components/ContextMenu';
-import { useTheme } from '@/contexts/ThemeContext';
-import { usePageActions } from '@/contexts/PageActionsContext';
-import { Button, ConfirmDialog, useToast } from '@/components/ui';
+import React,{useCallback,useEffect,useMemo,useState} from 'react';
+import {useTheme} from '@/contexts/ThemeContext';
+import {usePageActions} from '@/contexts/PageActionsContext';
+import {Button,useToast} from '@/components/ui';
+import {api,type HierarchyApi} from '@/api';
+import type {Category,Tile,Bookmark} from '@/types';
 
-const addGroupIcon = (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-    <path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-  </svg>
-);
+type DragState={type:'category'|'tile'|'bookmark';id:number;fromCategoryId?:number;fromTileId?:number}|null;
+type DialogState={kind:'category'|'tile'|'bookmark';item?:Category|Tile|Bookmark;categoryId?:number;tileId?:number}|null;
 
-export default function FrontPage() {
-  const { theme } = useTheme();
-  const { setOnNewLink, setOnEditLayout } = usePageActions();
-  const {
-    shortcuts,
-    setShortcuts,
-    groups,
-    setGroups,
-    settings,
-    isLoading,
-    ensureGroup,
-    createGroup,
-    updateGroup,
-    deleteGroup,
-    createShortcut,
-    updateShortcut,
-    deleteShortcut,
-    refreshFavicon,
-    uploadIcon,
-    removeIcon,
-  } = useAppData();
+function ordered<T extends {sort_order:number;id:number}>(items:T[]){return [...items].sort((a,b)=>a.sort_order-b.sort_order||a.id-b.id)}
+function initials(text:string){return text.trim().slice(0,1).toUpperCase()||'?' }
 
-  const [arrangeMode, setArrangeMode] = useState(false);
-
-  const [dialog, setDialog] = useState<
-    | { type: 'shortcut'; shortcut?: Shortcut; defaultGroupId?: number }
-    | { type: 'group'; group?: Group }
-    | null
-  >(null);
-
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shortcutId: number } | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<
-    | { type: 'shortcut'; id: number; title: string }
-    | { type: 'group'; id: number; title: string }
-    | null
-  >(null);
-
-  const handleShortcutContextMenu = useCallback((shortcutId: number, e: React.MouseEvent) => {
-    setContextMenu({ x: e.clientX, y: e.clientY, shortcutId });
-  }, []);
-
-  const { addToast } = useToast();
-
-  const drag = useDragDrop({ shortcuts, groups, setShortcuts, setGroups });
-
-  useEffect(() => {
-    setOnNewLink(() => setDialog({ type: 'shortcut' }));
-    return () => setOnNewLink(null);
-  }, [setOnNewLink]);
-
-  useEffect(() => {
-    setOnEditLayout(() => setArrangeMode(v => !v), arrangeMode);
-    return () => setOnEditLayout(null, false);
-  }, [setOnEditLayout, arrangeMode]);
-
-  const layoutMode = (settings.layout_mode || 'row') as 'row' | 'column';
-  const columnExtraWidth = Number(settings.column_extra_width) || 0;
-
-  const sortedGroups = useMemo(
-    () => [...groups].sort((a, b) => a.sort_order - b.sort_order),
-    [groups]
-  );
-
-  const shortcutsByGroup = useMemo(() => {
-    const map = new Map<number, Shortcut[]>();
-    for (const s of shortcuts) {
-      if (s.group_id === null) continue;
-      const arr = map.get(s.group_id) ?? [];
-      arr.push(s);
-      map.set(s.group_id, arr);
-    }
-    for (const arr of map.values()) arr.sort((a, b) => a.sort_order - b.sort_order);
-    return map;
-  }, [shortcuts]);
-
-  const layoutStyle = useMemo<React.CSSProperties>(() => {
-    if (layoutMode === 'column' && columnExtraWidth > 0) {
-      return { '--column-extra-width': `${columnExtraWidth}px` } as React.CSSProperties;
-    }
-    return {};
-  }, [layoutMode, columnExtraWidth]);
-
-  const handleOpenEditGroup = useCallback((group: Group) => {
-    setDialog({ type: 'group', group });
-  }, []);
-
-  const handleDeleteGroup = useCallback(async (groupId: number) => {
-    await deleteGroup(groupId);
-  }, [deleteGroup]);
-
-  const handleSaveShortcut = useCallback(async (data: { title: string; url: string; group_id: number | null }) => {
-    const groupId = data.group_id ?? await ensureGroup();
-
-    if (dialog?.type === 'shortcut' && dialog.shortcut) {
-      await updateShortcut({ id: dialog.shortcut.id, data: { ...data, group_id: groupId } });
-    } else {
-      // useAppData polls until the background favicon fetch completes
-      await createShortcut({ ...data, group_id: groupId, grid_x: 0, grid_y: 0 });
-    }
-    setDialog(null);
-  }, [createShortcut, dialog, ensureGroup, updateShortcut]);
-
-  const handleSaveGroup = useCallback(async (data: { title: string; color: string }) => {
-    if (dialog?.type === 'group' && dialog.group) {
-      await updateGroup({ id: dialog.group.id, data });
-    } else {
-      await createGroup(data);
-    }
-    setDialog(null);
-  }, [createGroup, dialog, updateGroup]);
-
-  const handleDeleteShortcut = useCallback(async (id: number) => {
-    await deleteShortcut(id);
-  }, [deleteShortcut]);
-
-  const handleRefreshFavicon = useCallback(async (id: number) => {
-    addToast('Refreshing favicon...');
-    const previousIconPath = shortcuts.find((s) => s.id === id)?.icon_path ?? null;
-    try {
-      // The server keeps the old icon when no favicon is found, so a
-      // changed icon_path is the only reliable success signal
-      const updated = await refreshFavicon(id);
-      if (updated.icon_path && updated.icon_path !== previousIconPath) {
-        addToast('Icon updated', 'success');
-      } else {
-        addToast('No favicon found for this site', 'error');
-      }
-    } catch {
-      addToast('Favicon refresh failed', 'error');
-    }
-  }, [addToast, refreshFavicon, shortcuts]);
-
-  const handleUploadIcon = useCallback(async (id: number) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      try {
-        await uploadIcon({ id, file });
-        addToast('Icon uploaded', 'success');
-      } catch {
-        addToast('Icon upload failed', 'error');
-      }
-    };
-    input.click();
-  }, [addToast, uploadIcon]);
-
-  const handleRemoveIcon = useCallback(async (id: number) => {
-    try {
-      await removeIcon(id);
-      addToast('Icon removed', 'success');
-    } catch {
-      addToast('Failed to remove icon', 'error');
-    }
-  }, [addToast, removeIcon]);
-
-  const handleConfirmDelete = useCallback(() => {
-    if (!confirmDelete) return;
-    if (confirmDelete.type === 'group') {
-      void handleDeleteGroup(confirmDelete.id);
-    } else {
-      void handleDeleteShortcut(confirmDelete.id);
-    }
-  }, [confirmDelete, handleDeleteGroup, handleDeleteShortcut]);
-
-  const contextMenuItems = useMemo(() => {
-    if (!contextMenu) return null;
-    const sc = shortcuts.find((s) => s.id === contextMenu.shortcutId);
-    if (!sc) return null;
-    return [
-      { label: 'Edit', onClick: () => setDialog({ type: 'shortcut', shortcut: sc }) },
-      { divider: true, label: '', onClick: () => {} },
-      { label: 'Upload Icon', onClick: () => handleUploadIcon(sc.id) },
-      { label: 'Refresh Favicon', onClick: () => handleRefreshFavicon(sc.id) },
-      ...(sc.icon_path ? [{ label: 'Remove Icon', onClick: () => handleRemoveIcon(sc.id) }] : []),
-      { divider: true, label: '', onClick: () => {} },
-      { label: 'Delete', danger: true, onClick: () => setConfirmDelete({ type: 'shortcut', id: sc.id, title: sc.title }) },
-    ];
-  }, [contextMenu, shortcuts, handleUploadIcon, handleRefreshFavicon, handleRemoveIcon]);
-
-  const showEmptyState = !isLoading && sortedGroups.length === 0 && !arrangeMode;
-
-  return (
-    <>
-      {showEmptyState ? (
-      <div className="flex flex-col items-center justify-center text-center px-6" style={{ minHeight: '60vh' }}>
-        <div
-          className="flex items-center justify-center w-16 h-16 rounded-2xl mb-5"
-          style={{ background: `${theme.accent}15`, color: theme.accent }}
-        >
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-          </svg>
-        </div>
-        <h2 className="text-xl font-extrabold tracking-tight" style={{ color: theme.text }}>
-          Welcome to Launchpad
-        </h2>
-        <p className="text-sm mt-1.5 max-w-sm" style={{ color: theme.text2 }}>
-          Your launcher is empty. Add your first link, or create a group to organize them.
-        </p>
-        <div className="flex flex-wrap justify-center gap-3 mt-6">
-          <Button variant="primary" size="lg" onClick={() => setDialog({ type: 'shortcut' })}>
-            Add your first link
-          </Button>
-          <Button size="lg" onClick={() => setDialog({ type: 'group' })}>
-            Create a group
-          </Button>
-        </div>
-        <p className="text-xs mt-6" style={{ color: theme.text2, opacity: 0.8 }}>
-          Tip: right-click (or long-press on touch devices) anywhere to add links and groups any time.
-        </p>
-      </div>
-      ) : (
-      <div className={`desktop-layout layout-${layoutMode}`} style={layoutStyle}>
-        {sortedGroups.map((g, idx) => (
-          <GroupBox
-            key={g.id}
-            group={g}
-            groupIndex={idx}
-            shortcuts={shortcutsByGroup.get(g.id) ?? []}
-            arrangeMode={arrangeMode}
-            layoutMode={layoutMode}
-            linkTarget={settings.link_target || '_blank'}
-            onEditGroup={handleOpenEditGroup}
-            onDeleteGroup={(groupId) => {
-              const group = groups.find(g => g.id === groupId);
-              setConfirmDelete({ type: 'group', id: groupId, title: group?.title || 'Untitled group' });
-            }}
-            onGroupDragStart={drag.handleGroupDragStart}
-            onGroupDragOver={drag.handleGroupDragOver}
-            onGroupDrop={drag.handleGroupDrop}
-            onDragEnd={drag.handleDragEnd}
-            onShortcutDragStart={drag.handleShortcutDragStart}
-            onShortcutDragOver={drag.handleShortcutDragOver}
-            onShortcutDrop={drag.handleShortcutDrop}
-            onShortcutDropEnd={drag.handleShortcutDropEnd}
-            onShortcutContextMenu={handleShortcutContextMenu}
-          />
-        ))}
-        {arrangeMode && (
-          <button
-            type="button"
-            className="group-container"
-            onClick={() => setDialog({ type: 'group' })}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              gap: '8px', minHeight: '72px', cursor: 'pointer',
-              border: `2px dashed ${theme.border}`,
-              background: 'transparent', boxShadow: 'none',
-              color: theme.text2, fontSize: '14px', fontWeight: 500,
-              opacity: 0.7,
-            }}
-          >
-            {addGroupIcon}
-            Add group
-          </button>
-        )}
-      </div>
-      )}
-
-      {dialog?.type === 'shortcut' && (
-        <ShortcutDialog
-          shortcut={dialog.shortcut}
-          groups={groups}
-          defaultGroupId={dialog.defaultGroupId}
-          onSave={handleSaveShortcut}
-          onClose={() => setDialog(null)}
-        />
-      )}
-      {dialog?.type === 'group' && (
-        <GroupDialog
-          group={dialog.group}
-          onSave={handleSaveGroup}
-          onClose={() => setDialog(null)}
-        />
-      )}
-
-      {contextMenu && contextMenuItems && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          items={contextMenuItems as Parameters<typeof ContextMenu>[0]['items']}
-          onClose={() => setContextMenu(null)}
-        />
-      )}
-
-      <ConfirmDialog
-        open={Boolean(confirmDelete)}
-        title={confirmDelete?.type === 'group' ? 'Delete group' : 'Delete shortcut'}
-        message={
-          confirmDelete?.type === 'group'
-            ? `Delete "${confirmDelete.title || 'Untitled group'}" and its shortcuts.`
-            : `Delete "${confirmDelete?.title || 'this shortcut'}".`
-        }
-        confirmLabel="Delete"
-        destructive
-        onConfirm={handleConfirmDelete}
-        onClose={() => setConfirmDelete(null)}
-      />
-
-    </>
-  );
+export default function FrontPage(){
+ const {theme}=useTheme();const {setOnNewLink,setOnEditLayout}=usePageActions();const {addToast}=useToast();
+ const [data,setData]=useState<HierarchyApi>({categories:[],tiles:[],bookmarks:[]});const [loading,setLoading]=useState(true);const [edit,setEdit]=useState(false);const [query,setQuery]=useState('');const [drag,setDrag]=useState<DragState>(null);const [dialog,setDialog]=useState<DialogState>(null);const [importing,setImporting]=useState(false);
+ const reload=useCallback(async()=>{setLoading(true);try{setData(await api.getHierarchy())}catch(e){addToast(e instanceof Error?e.message:'Laden fehlgeschlagen','error')}finally{setLoading(false)}},[addToast]);
+ useEffect(()=>{void reload()},[reload]);useEffect(()=>{setOnNewLink(()=>setDialog({kind:'bookmark'}));return()=>setOnNewLink(null)},[setOnNewLink]);useEffect(()=>{setOnEditLayout(()=>setEdit(v=>!v),edit);return()=>setOnEditLayout(null,false)},[setOnEditLayout,edit]);
+ const tilesByCategory=useMemo(()=>{const m=new Map<number,Tile[]>();data.tiles.forEach(t=>m.set(t.category_id,[...(m.get(t.category_id)||[]),t]));for(const [k,v] of m)m.set(k,ordered(v));return m},[data.tiles]);
+ const bookmarksByTile=useMemo(()=>{const m=new Map<number,Bookmark[]>();data.bookmarks.forEach(b=>m.set(b.tile_id,[...(m.get(b.tile_id)||[]),b]));for(const [k,v] of m)m.set(k,ordered(v));return m},[data.bookmarks]);
+ const persist=useCallback(async(next:HierarchyApi)=>{setData(next);try{await api.updateHierarchyLayout({categories:ordered(next.categories).map((x,i)=>({id:x.id,sort_order:i})),tiles:next.tiles.map(x=>({id:x.id,category_id:x.category_id,sort_order:x.sort_order,position_x:x.position_x,position_y:x.position_y})),bookmarks:next.bookmarks.map(x=>({id:x.id,tile_id:x.tile_id,sort_order:x.sort_order}))})}catch(e){addToast(e instanceof Error?e.message:'Reihenfolge konnte nicht gespeichert werden','error');void reload()}},[addToast,reload]);
+ const reorderCategories=(id:number,target:number)=>{const a=ordered(data.categories);const from=a.findIndex(x=>x.id===id),to=a.findIndex(x=>x.id===target);if(from<0||to<0||from===to)return;const [x]=a.splice(from,1);a.splice(to,0,x);a.forEach((v,i)=>v.sort_order=i);void persist({...data,categories:a})};
+ const reorderTiles=(id:number,target:number,categoryId:number)=>{const siblings=ordered(data.tiles.filter(x=>x.category_id===categoryId));const from=siblings.findIndex(x=>x.id===id),to=siblings.findIndex(x=>x.id===target);if(from<0||to<0||from===to)return;const [x]=siblings.splice(from,1);siblings.splice(to,0,x);siblings.forEach((v,i)=>v.sort_order=i);void persist({...data,tiles:[...data.tiles.filter(x=>x.category_id!==categoryId),...siblings]})};
+ const reorderBookmarks=(id:number,target:number,tileId:number)=>{const siblings=ordered(data.bookmarks.filter(x=>x.tile_id===tileId));const from=siblings.findIndex(x=>x.id===id),to=siblings.findIndex(x=>x.id===target);if(from<0||to<0||from===to)return;const [x]=siblings.splice(from,1);siblings.splice(to,0,x);siblings.forEach((v,i)=>v.sort_order=i);void persist({...data,bookmarks:[...data.bookmarks.filter(x=>x.tile_id!==tileId),...siblings]})};
+ const moveTile=(id:number,targetCategoryId:number)=>{const tile=data.tiles.find(x=>x.id===id);if(!tile)return;const nextTiles=data.tiles.map(x=>x.id===id?{...x,category_id:targetCategoryId}:x);const siblings=ordered(nextTiles.filter(x=>x.category_id===targetCategoryId));siblings.forEach((x,i)=>x.sort_order=i);void persist({...data,tiles:[...nextTiles.filter(x=>x.category_id!==targetCategoryId),...siblings]})};
+ const moveBookmark=(id:number,targetTileId:number)=>{const next=data.bookmarks.map(x=>x.id===id?{...x,tile_id:targetTileId}:x);const siblings=ordered(next.filter(x=>x.tile_id===targetTileId));siblings.forEach((x,i)=>x.sort_order=i);void persist({...data,bookmarks:[...next.filter(x=>x.tile_id!==targetTileId),...siblings]})};
+ const save=async(kind:'category'|'tile'|'bookmark',id:number|undefined,payload:Record<string,unknown>)=>{try{if(kind==='category')id?await api.updateCategory(id,payload):await api.createCategory(payload);else if(kind==='tile')id?await api.updateTile(id,payload):await api.createTile(payload);else id?await api.updateBookmark(id,payload):await api.createBookmark(payload);setDialog(null);await reload()}catch(e){addToast(e instanceof Error?e.message:'Speichern fehlgeschlagen','error')}};
+ const remove=async(kind:'category'|'tile'|'bookmark',id:number)=>{if(!confirm('Wirklich löschen?'))return;try{if(kind==='category')await api.deleteCategory(id);else if(kind==='tile')await api.deleteTile(id);else await api.deleteBookmark(id);await reload()}catch(e){addToast(e instanceof Error?e.message:'Löschen fehlgeschlagen','error')}};
+ const importBrave=()=>{const input=document.createElement('input');input.type='file';input.accept='.html,.htm';input.onchange=async()=>{const file=input.files?.[0];if(!file)return;setImporting(true);try{const doc=new DOMParser().parseFromString(await file.text(),'text/html');const result=parseBrave(doc);if(!result.categories.length)throw new Error('Keine importierbaren Bookmark-Ordner gefunden.');const stats=await api.importBrave(result);addToast(`${stats.bookmarksAdded} neu, ${stats.bookmarksUpdated} aktualisiert`,'success');await reload()}catch(e){addToast(e instanceof Error?e.message:'Brave-Import fehlgeschlagen','error')}finally{setImporting(false)}};input.click()};
+ if(loading)return <div className="py-16 text-center" style={{color:theme.text2}}>Lade Launchpad …</div>;
+ const q=query.trim().toLowerCase();const categories=ordered(data.categories);
+ return <div className="bookmark-launcher">
+  <div className="launcher-toolbar"><div className="launcher-brand"><div className="launcher-title">Launchpad</div><div className="launcher-subtitle">Persönliche Bookmarks · lokal / LAN</div></div><input className="launcher-search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Suchen …"/><div className="launcher-actions"><Button size="sm" onClick={()=>setEdit(v=>!v)}>{edit?'Fertig':'Bearbeiten'}</Button><Button size="sm" onClick={importBrave} disabled={importing}>{importing?'Importiere …':'Brave importieren'}</Button><Button size="sm" onClick={()=>setDialog({kind:'category'})}>+ Kategorie</Button></div></div>
+  {!categories.length?<div className="launcher-empty">Noch keine Kategorien. Lege eine Kategorie an oder importiere deine Brave-Lesezeichen.</div>:categories.map(cat=>{const tiles=(tilesByCategory.get(cat.id)||[]).filter(t=>!q||t.name.toLowerCase().includes(q)||(bookmarksByTile.get(t.id)||[]).some(b=>(b.name+' '+b.url).toLowerCase().includes(q)));return <section key={cat.id} className="bookmark-category" onDragOver={e=>{if(edit&&drag&&(drag.type==='category'||drag.type==='tile'))e.preventDefault()}} onDrop={e=>{if(!edit||!drag)return;e.preventDefault();if(drag.type==='category')reorderCategories(drag.id,cat.id);else if(drag.type==='tile')moveTile(drag.id,cat.id);setDrag(null)}}>
+   <div className="category-header" draggable={edit} onDragStart={()=>setDrag({type:'category',id:cat.id})} onDragEnd={()=>setDrag(null)}><button className="collapse-btn" onClick={()=>void api.updateCategory(cat.id,{collapsed:cat.collapsed?0:1}).then(reload)}>{cat.collapsed?'▶':'▼'}</button><span className="category-drag">⋮⋮</span><span className="category-name">{cat.name}</span><span className="category-count">{(tilesByCategory.get(cat.id)||[]).length}</span>{edit&&<><button onClick={()=>setDialog({kind:'category',item:cat})}>✎</button><button className="danger" onClick={()=>void remove('category',cat.id)}>×</button></>}</div>
+   {!cat.collapsed&&<div className="tile-grid">{tiles.map(tile=><article key={tile.id} className="bookmark-tile" draggable={edit} onDragStart={()=>setDrag({type:'tile',id:tile.id,fromCategoryId:cat.id})} onDragEnd={()=>setDrag(null)} onDragOver={e=>{if(edit&&drag&&(drag.type==='tile'||drag.type==='bookmark'))e.preventDefault()}} onDrop={e=>{if(!edit||!drag)return;e.preventDefault();if(drag.type==='tile'){if(drag.id!==tile.id)reorderTiles(drag.id,tile.id,cat.id)}else if(drag.type==='bookmark'&&drag.fromTileId!==tile.id)moveBookmark(drag.id,tile.id);setDrag(null)}}>
+    <div className="tile-header"><span>{tile.name}</span>{edit&&<span className="tile-tools"><button onClick={()=>setDialog({kind:'tile',item:tile})}>✎</button><button className="danger" onClick={()=>void remove('tile',tile.id)}>×</button></span>}</div>
+    <div className="bookmark-list">{(bookmarksByTile.get(tile.id)||[]).filter(b=>!q||(b.name+' '+b.url).toLowerCase().includes(q)).map(b=><div key={b.id} data-bookmark-id={b.id} className="bookmark-row" draggable={edit} onDragStart={()=>setDrag({type:'bookmark',id:b.id,fromTileId:tile.id})} onDragEnd={()=>setDrag(null)} onDragOver={e=>{if(edit&&drag?.type==='bookmark')e.preventDefault()}} onDrop={e=>{if(!edit||!drag||drag.type!=='bookmark')return;e.preventDefault();if(drag.id!==b.id){if(drag.fromTileId===tile.id)reorderBookmarks(drag.id,b.id,tile.id);else moveBookmark(drag.id,tile.id)}setDrag(null)}}><a href={b.url} target="_blank" rel="noopener noreferrer"><span className="bookmark-icon">{b.favicon?<img src={b.favicon} alt="" onError={e=>{(e.currentTarget as HTMLImageElement).style.display='none'}}/>:initials(b.name)}</span><span className="bookmark-name">{b.name}</span></a>{edit&&<span className="bookmark-tools"><button onClick={e=>{e.preventDefault();e.stopPropagation();setDialog({kind:'bookmark',item:b})}}>✎</button><button className="danger" onClick={e=>{e.preventDefault();e.stopPropagation();void remove('bookmark',b.id)}}>×</button></span>}</div>)}</div>
+    {edit&&<button className="add-bookmark" onClick={()=>setDialog({kind:'bookmark',tileId:tile.id})}>+ Eintrag</button>}
+   </article>)}{edit&&<button className="add-tile" onClick={()=>setDialog({kind:'tile',categoryId:cat.id})}>+ Kachel</button>}</div>}
+  </section>})}
+  {dialog&&<EditorDialog dialog={dialog} categories={data.categories} tiles={data.tiles} onClose={()=>setDialog(null)} onSave={save}/>} 
+ </div>
 }
+
+function parseBrave(doc:Document){type B={name:string;url:string;favicon:string|null;sort_order:number};type T={name:string;sort_order:number;bookmarks:B[]};type C={name:string;sort_order:number;tiles:T[]};const categories:C[]=[];const parseFolder=(dt:Element):T|null=>{const h=dt.querySelector(':scope > h3');const dl=dt.querySelector(':scope > dl');if(!h||!dl)return null;const bookmarks:B[]=[];for(const child of [...dl.children]){const a=child.querySelector(':scope > a') as HTMLAnchorElement|null;if(a?.href)bookmarks.push({name:(a.textContent||a.href).trim()||a.href,url:a.href,favicon:a.getAttribute('ICON')||a.getAttribute('icon')||null,sort_order:bookmarks.length})}return{name:(h.textContent||'Unbenannt').trim()||'Unbenannt',sort_order:0,bookmarks}};
+ const bodyDl=doc.querySelector('body > dl')||doc.querySelector('dl');if(!bodyDl)return{categories};const top=[...bodyDl.children].filter(e=>e.tagName.toLowerCase()==='dt');for(const dt of top){const h=dt.querySelector(':scope > h3');const dl=dt.querySelector(':scope > dl');if(!h||!dl)continue;const childFolders=[...dl.children].filter(e=>e.tagName.toLowerCase()==='dt').map(parseFolder).filter(Boolean) as T[];if(childFolders.length){childFolders.forEach((x,i)=>x.sort_order=i);categories.push({name:(h.textContent||'Import').trim()||'Import',sort_order:categories.length,tiles:childFolders})}else{const tile=parseFolder(dt);if(tile)categories.push({name:(h.textContent||'Import').trim()||'Import',sort_order:categories.length,tiles:[tile]})}}return{categories}}
+
+function EditorDialog({dialog,categories,tiles,onClose,onSave}:{dialog:DialogState;categories:Category[];tiles:Tile[];onClose:()=>void;onSave:(kind:'category'|'tile'|'bookmark',id:number|undefined,payload:Record<string,unknown>)=>void}){const item=dialog!.item as Category|Tile|Bookmark|undefined;const [name,setName]=useState((item&&('name'in item?item.name:item.title))||'');const [url,setUrl]=useState((item&&'url'in item?item.url:'')||'');const [parent,setParent]=useState(String(dialog!.kind==='tile'?((item as Tile)?.category_id||dialog!.categoryId||''):((item as Bookmark)?.tile_id||dialog!.tileId||'')));const [favicon,setFavicon]=useState((item&&'favicon'in item?item.favicon||'':'')||'');return <div className="launcher-modal" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><form onSubmit={e=>{e.preventDefault();if(dialog!.kind==='category')onSave('category',(item as Category)?.id,{name});else if(dialog!.kind==='tile')onSave('tile',(item as Tile)?.id,{category_id:Number(parent),name,sort_order:(item as Tile)?.sort_order??tiles.filter(t=>t.category_id===Number(parent)).length,position_x:(item as Tile)?.position_x??null,position_y:(item as Tile)?.position_y??null});else onSave('bookmark',(item as Bookmark)?.id,{tile_id:Number(parent),name,url,favicon:favicon||null,sort_order:(item as Bookmark)?.sort_order??0})}}><h2>{item?'Bearbeiten':dialog!.kind==='category'?'Neue Kategorie':dialog!.kind==='tile'?'Neue Kachel':'Neuer Eintrag'}</h2><label>Name<input autoFocus value={name} onChange={e=>setName(e.target.value)} required/></label>{dialog!.kind!=='category'&&<label>{dialog!.kind==='tile'?'Kategorie':'Kachel'}<select value={parent} onChange={e=>setParent(e.target.value)} required><option value="">Bitte wählen …</option>{(dialog!.kind==='tile'?ordered(categories):ordered(tiles)).map((x:any)=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>}{dialog!.kind==='bookmark'&&<><label>URL<input type="url" value={url} onChange={e=>setUrl(e.target.value)} required/></label><label>Favicon (optional)<input value={favicon} onChange={e=>setFavicon(e.target.value)} placeholder="data:image/png;base64,…"/></label></>}<div className="modal-actions"><Button type="button" onClick={onClose}>Abbrechen</Button><Button type="submit" variant="primary">Speichern</Button></div></form></div>}
