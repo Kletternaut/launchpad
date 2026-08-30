@@ -36,8 +36,8 @@ try {
     npm prune --omit=dev
 
     New-Item -ItemType Directory -Force -Path "$payload/app/client", "$payload/app/server", "$payload/runtime", "$payload/service" | Out-Null
-    Copy-Item -Recurse -Force 'client/dist' "$payload/app/client"
-    Copy-Item -Recurse -Force 'server/dist' "$payload/app/server"
+    Copy-Item -Recurse -Force 'client/dist' "$payload/app/client/dist"
+    Copy-Item -Recurse -Force 'server/dist' "$payload/app/server/dist"
     Copy-Item -Recurse -Force 'server/node_modules' "$payload/app/server/node_modules"
     Copy-Item 'server/package.json' "$payload/app/server/package.json"
 
@@ -51,9 +51,18 @@ try {
 
     Invoke-WebRequest -Uri $url -OutFile $temp
     Invoke-WebRequest -Uri $shaUrl -OutFile $shaFile
-    $expected = (Select-String -Path $shaFile -Pattern [regex]::Escape($archive)).Line.Split(' ')[0]
-    $actual = (Get-FileHash -Algorithm SHA256 -Path $temp).Hash.ToLowerInvariant()
-    if ($actual -ne $expected.ToLowerInvariant()) {
+    $expected = $null
+    foreach ($line in Get-Content -Path $shaFile -Encoding ascii) {
+        if ($line -match '^(?<hash>[0-9a-fA-F]{64})\s+\*?' + [regex]::Escape($archive) + '$') {
+            $expected = $Matches['hash']
+            break
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($expected)) {
+        throw "Could not find Node.js archive checksum for $archive."
+    }
+    $actual = (Get-FileHash -Algorithm SHA256 -Path $temp).Hash
+    if (-not [string]::Equals($actual, $expected, [StringComparison]::OrdinalIgnoreCase)) {
         throw "Node.js archive checksum mismatch."
     }
 
@@ -61,6 +70,18 @@ try {
     Remove-Item -Recurse -Force $nodeExtract -ErrorAction SilentlyContinue
     Expand-Archive -Path $temp -DestinationPath $nodeExtract
     Copy-Item "$nodeExtract/node-v$nodeVersion-win-x64/node.exe" "$payload/runtime/node.exe"
+
+    foreach ($required in @(
+        "$payload/service/LaunchpadService.exe",
+        "$payload/service/appsettings.json",
+        "$payload/app/server/dist/index.js",
+        "$payload/app/client/dist/index.html",
+        "$payload/runtime/node.exe"
+    )) {
+        if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
+            throw "Required payload file is missing: $required"
+        }
+    }
 
     dotnet build 'windows-service/installer/LaunchpadInstaller.wixproj' -c Release `
         -p:PayloadRoot="$payload" `
