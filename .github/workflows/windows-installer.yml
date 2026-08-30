@@ -8,7 +8,7 @@ permissions:
 
 env:
   NODE_VERSION: 24.20.0
-  DOTNET_VERSION: 10.0.400
+  DOTNET_SDK_VERSION: 10.0.400
 
 jobs:
   build-msi:
@@ -24,10 +24,10 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: Setup .NET
+      - name: Setup .NET SDK
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
 
       - name: Install dependencies
         shell: pwsh
@@ -39,14 +39,6 @@ jobs:
       - name: Run server tests
         run: npm test
 
-      - name: Remove development dependencies
-        shell: pwsh
-        run: npm prune --omit=dev
-
-      - name: Publish Windows service
-        shell: pwsh
-        run: dotnet publish windows-service/LaunchpadService.csproj -c Release -r win-x64 --self-contained true -o "$env:GITHUB_WORKSPACE/payload/service"
-
       - name: Prepare application payload
         shell: pwsh
         run: |
@@ -54,8 +46,18 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$payload/app/client", "$payload/app/server", "$payload/runtime" | Out-Null
           Copy-Item -Recurse -Force client/dist "$payload/app/client/dist"
           Copy-Item -Recurse -Force server/dist "$payload/app/server/dist"
-          Copy-Item -Recurse -Force node_modules "$payload/app/node_modules"
           Copy-Item server/package.json "$payload/app/server/package.json"
+          Push-Location "$payload/app/server"
+          try {
+            npm install --omit=dev --ignore-scripts=false --no-package-lock
+          }
+          finally {
+            Pop-Location
+          }
+
+      - name: Publish Windows service
+        shell: pwsh
+        run: dotnet publish windows-service/LaunchpadService.csproj -c Release -r win-x64 --self-contained true -o "$env:GITHUB_WORKSPACE/payload/service"
 
       - name: Download pinned Node.js runtime
         shell: pwsh
@@ -88,8 +90,8 @@ jobs:
           $payload = Join-Path $env:GITHUB_WORKSPACE 'payload'
           foreach ($path in @(
             "$payload/app/server/dist/index.js",
+            "$payload/app/server/node_modules/sql.js/package.json",
             "$payload/app/client/dist/index.html",
-            "$payload/app/node_modules/sql.js/package.json",
             "$payload/runtime/node.exe",
             "$payload/service/LaunchpadService.exe",
             "$payload/service/appsettings.json"
