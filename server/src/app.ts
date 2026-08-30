@@ -13,10 +13,13 @@ export function createApp() {
   app.use(cors({ origin: config.allowedOrigins }));
   app.use(express.json({ limit: '10mb' }));
 
-  // API routes
+  // API routes must always win over the SPA fallback.
   app.use('/api', routes);
+  app.use('/api', (_req, res) => {
+    res.status(404).json({ error: 'API endpoint not found' });
+  });
 
-  // Serve static frontend in production
+  // Serve static frontend in production.
   if (process.env.NODE_ENV === 'production') {
     const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');
     app.use(express.static(clientDist));
