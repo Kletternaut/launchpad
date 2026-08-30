@@ -68,13 +68,19 @@ jobs:
           $shaFile = Join-Path $env:RUNNER_TEMP 'SHASUMS256.txt'
           Invoke-WebRequest -Uri $url -OutFile $zip
           Invoke-WebRequest -Uri $shaUrl -OutFile $shaFile
-          $line = Get-Content -Raw -Path $shaFile -Encoding ascii | Select-String -Pattern ([regex]::Escape($archive))
-          if (-not $line) { throw "Could not find Node.js archive checksum for $archive." }
-          $expected = ($line.Matches | Select-Object -First 1).Value.Trim().Split([char]9,[char]32) | Select-Object -First 1
-          $actual = (Get-FileHash -Algorithm SHA256 -Path $zip).Hash.ToLowerInvariant()
-          if ($actual -ne $expected.ToLowerInvariant()) { throw "Node.js archive checksum mismatch." }
-          Expand-Archive -Path $zip -DestinationPath (Join-Path $env:RUNNER_TEMP 'node-runtime')
-          Copy-Item (Join-Path $env:RUNNER_TEMP "node-runtime/node-v$version-win-x64/node.exe") (Join-Path $env:GITHUB_WORKSPACE 'payload/runtime/node.exe')
+          $expected = $null
+          foreach ($line in Get-Content -Path $shaFile -Encoding ascii) {
+            if ($line -match '^(?<hash>[0-9a-fA-F]{64})\s+\*?' + [regex]::Escape($archive) + '$') {
+              $expected = $Matches['hash']
+              break
+            }
+          }
+          if ([string]::IsNullOrWhiteSpace($expected)) { throw "Could not find Node.js archive checksum for $archive." }
+          $actual = (Get-FileHash -Algorithm SHA256 -Path $zip).Hash
+          if (-not [string]::Equals($actual, $expected, [StringComparison]::OrdinalIgnoreCase)) { throw "Node.js archive checksum mismatch." }
+          $runtimeRoot = Join-Path $env:RUNNER_TEMP 'node-runtime'
+          Expand-Archive -Path $zip -DestinationPath $runtimeRoot
+          Copy-Item (Join-Path $runtimeRoot "node-v$version-win-x64/node.exe") (Join-Path $env:GITHUB_WORKSPACE 'payload/runtime/node.exe')
 
       - name: Build MSI
         shell: pwsh
