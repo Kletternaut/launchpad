@@ -8,7 +8,7 @@ permissions:
 
 env:
   NODE_VERSION: 24.20.0
-  DOTNET_SDK_VERSION: 10.0.400
+  DOTNET_VERSION: 10.0.400
 
 jobs:
   build-msi:
@@ -24,10 +24,10 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: Setup .NET SDK
+      - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Install dependencies
         shell: pwsh
@@ -85,11 +85,14 @@ jobs:
       - name: Validate runtime payload
         shell: pwsh
         run: |
-          $entry = Join-Path $env:GITHUB_WORKSPACE 'payload/app/server/dist/index.js'
-          $client = Join-Path $env:GITHUB_WORKSPACE 'payload/app/client/dist/index.html'
-          $node = Join-Path $env:GITHUB_WORKSPACE 'payload/runtime/node.exe'
-          $service = Join-Path $env:GITHUB_WORKSPACE 'payload/service/LaunchpadService.exe'
-          foreach ($path in @($entry, $client, $node, $service)) {
+          $payload = Join-Path $env:GITHUB_WORKSPACE 'payload'
+          foreach ($path in @(
+            "$payload/app/server/dist/index.js",
+            "$payload/app/client/dist/index.html",
+            "$payload/runtime/node.exe",
+            "$payload/service/LaunchpadService.exe",
+            "$payload/service/appsettings.json"
+          )) {
             if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Required payload file is missing: $path" }
           }
 
