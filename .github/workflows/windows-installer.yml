@@ -2,9 +2,6 @@ name: Windows MSI
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - sw-wetter-lan-windows
 
 permissions:
   contents: read
@@ -71,11 +68,13 @@ jobs:
           $shaFile = Join-Path $env:RUNNER_TEMP 'SHASUMS256.txt'
           Invoke-WebRequest -Uri $url -OutFile $zip
           Invoke-WebRequest -Uri $shaUrl -OutFile $shaFile
-          $expected = (Select-String -Path $shaFile -Pattern [regex]::Escape($archive)).Line.Split(' ')[0]
+          $line = Get-Content -Raw -Path $shaFile -Encoding ascii | Select-String -Pattern ([regex]::Escape($archive))
+          if (-not $line) { throw "Could not find Node.js archive checksum for $archive." }
+          $expected = ($line.Matches | Select-Object -First 1).Value.Trim().Split([char]9,[char]32) | Select-Object -First 1
           $actual = (Get-FileHash -Algorithm SHA256 -Path $zip).Hash.ToLowerInvariant()
           if ($actual -ne $expected.ToLowerInvariant()) { throw "Node.js archive checksum mismatch." }
-          Expand-Archive -Path $zip -DestinationPath $env:RUNNER_TEMP/node-runtime
-          Copy-Item "$env:RUNNER_TEMP/node-runtime/node-v$version-win-x64/node.exe" "$env:GITHUB_WORKSPACE/payload/runtime/node.exe"
+          Expand-Archive -Path $zip -DestinationPath (Join-Path $env:RUNNER_TEMP 'node-runtime')
+          Copy-Item (Join-Path $env:RUNNER_TEMP "node-runtime/node-v$version-win-x64/node.exe") (Join-Path $env:GITHUB_WORKSPACE 'payload/runtime/node.exe')
 
       - name: Build MSI
         shell: pwsh
