@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package
+      Name="Kletternaut Launchpad"
+      Manufacturer="Kletternaut"
+      Version="!(bind.packageVersion)"
+      UpgradeCode="7B4D1E8C-2F7D-4D88-9B44-6D4C6D7A0A31"
+      Scope="perMachine"
+      Compressed="yes">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Kletternaut Launchpad is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="license.rtf" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="APPLICATIONFOLDER" Name="Kletternaut">
+        <Directory Id="INSTALLFOLDER" Name="Launchpad" />
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="CommonAppDataFolder">
+      <Directory Id="KLETTERNAUTDATA" Name="Kletternaut">
+        <Directory Id="LAUNCHPADDATA" Name="Launchpad" />
+      </Directory>
+    </StandardDirectory>
+
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="LaunchpadServiceComponent" Guid="*">
+        <File Id="LaunchpadServiceExe" Source="$(var.PayloadRoot)\\service\\LaunchpadService.exe" KeyPath="yes" />
+        <ServiceInstall
+            Id="LaunchpadServiceInstall"
+            Name="KletternautLaunchpad"
+            DisplayName="Kletternaut Launchpad"
+            Description="Kletternaut Launchpad bookmark service"
+            Start="auto"
+            Type="ownProcess"
+            ErrorControl="normal" />
+        <ServiceControl
+            Id="LaunchpadServiceControl"
+            Name="KletternautLaunchpad"
+            Start="install"
+            Stop="both"
+            Remove="uninstall"
+            Wait="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="LAUNCHPADDATA">
+      <Component Id="DataDirectoryComponent" Guid="*">
+        <CreateFolder />
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="MainFeature" Title="Kletternaut Launchpad" Level="1">
+      <ComponentRef Id="LaunchpadServiceComponent" />
+      <ComponentRef Id="DataDirectoryComponent" />
+    </Feature>
+  </Package>
+</Wix>
