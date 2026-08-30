@@ -4,9 +4,11 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 var builder = Host.CreateApplicationBuilder(args);
+builder.Configuration.SetBasePath(AppContext.BaseDirectory);
+builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 builder.Services.AddWindowsService(options =>
 {
-    options.ServiceName = "Kletternaut Launchpad";
+    options.ServiceName = "KletternautLaunchpad";
 });
 builder.Services.AddHostedService<LaunchpadWorker>();
 await builder.Build().RunAsync();
@@ -30,8 +32,8 @@ public sealed class LaunchpadWorker : BackgroundService
         var nodeExecutable = ResolvePath(_configuration["Launchpad:NodeExecutable"] ?? Path.Combine("runtime", "node.exe"), serviceBase);
         var arguments = _configuration["Launchpad:Arguments"] ?? Path.Combine("server", "dist", "index.js");
         var dataDirectory = ResolveDataDirectory(_configuration["Launchpad:DataDirectory"]);
-        var restartDelay = _configuration.GetValue("Launchpad:RestartDelaySeconds", 5);
-        var maxRestarts = _configuration.GetValue("Launchpad:MaxRestarts", 10);
+        var restartDelay = Math.Max(1, _configuration.GetValue("Launchpad:RestartDelaySeconds", 5));
+        var maxRestarts = Math.Max(0, _configuration.GetValue("Launchpad:MaxRestarts", 10));
         var restarts = 0;
 
         Directory.CreateDirectory(dataDirectory);
