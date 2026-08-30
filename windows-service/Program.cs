@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -25,14 +26,15 @@ public sealed class LaunchpadWorker : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var node = _configuration["Launchpad:NodeExecutable"] ?? "node.exe";
-        var workingDirectory = _configuration["Launchpad:WorkingDirectory"] ?? AppContext.BaseDirectory;
+        var workingDirectory = ResolvePath(_configuration["Launchpad:WorkingDirectory"] ?? ".");
         var arguments = _configuration["Launchpad:Arguments"] ?? "server\\dist\\index.js";
+        var dataDirectory = ResolvePath(_configuration["Launchpad:DataDirectory"] ?? "data");
         var restartDelay = _configuration.GetValue("Launchpad:RestartDelaySeconds", 5);
         var maxRestarts = _configuration.GetValue("Launchpad:MaxRestarts", 10);
         var restarts = 0;
 
-        Directory.SetCurrentDirectory(workingDirectory);
-        _log.LogInformation("Launchpad service starting. WorkingDirectory={WorkingDirectory}", workingDirectory);
+        Directory.CreateDirectory(dataDirectory);
+        _log.LogInformation("Launchpad service starting. WorkingDirectory={WorkingDirectory}, DataDirectory={DataDirectory}", workingDirectory, dataDirectory);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -49,9 +51,9 @@ public sealed class LaunchpadWorker : BackgroundService
                     CreateNoWindow = true,
                 };
 
-                // Keep service configuration authoritative and explicit.
                 foreach (var child in _configuration.GetSection("Launchpad:Environment").GetChildren())
                     psi.Environment[child.Key] = child.Value ?? string.Empty;
+                psi.Environment["DATA_DIR"] = dataDirectory;
 
                 _child = new Process { StartInfo = psi, EnableRaisingEvents = true };
                 _child.OutputDataReceived += (_, e) => { if (e.Data != null) _log.LogInformation("{Line}", e.Data); };
@@ -64,19 +66,12 @@ public sealed class LaunchpadWorker : BackgroundService
                 restarts = 0;
 
                 await _child.WaitForExitAsync(stoppingToken);
-
                 if (stoppingToken.IsCancellationRequested) break;
 
                 var exitCode = _child.ExitCode;
                 restarts++;
                 _log.LogWarning("Launchpad process exited with code {ExitCode}. Restart {Restart}/{MaxRestarts}.", exitCode, restarts, maxRestarts);
-
-                if (restarts > maxRestarts)
-                {
-                    _log.LogError("Maximum restart count reached. Service will stop supervising Launchpad.");
-                    break;
-                }
-
+                if (restarts > maxRestarts) break;
                 await Task.Delay(TimeSpan.FromSeconds(restartDelay), stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
@@ -104,7 +99,12 @@ public sealed class LaunchpadWorker : BackgroundService
             }
         }
         catch (Exception ex) { _log.LogWarning(ex, "Could not cleanly stop Launchpad child process."); }
-
         _log.LogInformation("Launchpad service stopped.");
+    }
+
+    private static string ResolvePath(string configuredPath)
+    {
+        if (Path.IsPathRooted(configuredPath)) return Path.GetFullPath(configuredPath);
+        return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, configuredPath));
     }
 }
