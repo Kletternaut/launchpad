@@ -25,12 +25,6 @@
       </Directory>
     </StandardDirectory>
 
-    <StandardDirectory Id="CommonAppDataFolder">
-      <Directory Id="KLETTERNAUTDATA" Name="Kletternaut">
-        <Directory Id="LAUNCHPADDATA" Name="Launchpad" />
-      </Directory>
-    </StandardDirectory>
-
     <DirectoryRef Id="INSTALLFOLDER">
       <Component Id="LaunchpadServiceComponent" Guid="*">
         <File Id="LaunchpadServiceExe" Source="!(bindpath.PayloadRoot)\service\LaunchpadService.exe" KeyPath="yes" />
@@ -69,24 +63,8 @@
       <Files Include="!(bindpath.PayloadRoot)\runtime\**" />
     </DirectoryRef>
 
-    <DirectoryRef Id="LAUNCHPADDATA">
-      <Component Id="DataDirectoryComponent" Guid="*">
-        <CreateFolder>
-          <util:PermissionEx
-              User="NT AUTHORITY\LocalService"
-              CreateChild="yes"
-              CreateFile="yes"
-              DeleteChild="yes"
-              Read="yes"
-              Traverse="yes"
-              Write="yes" />
-        </CreateFolder>
-      </Component>
-    </DirectoryRef>
-
     <Feature Id="MainFeature" Title="Kletternaut Launchpad" Level="1">
       <ComponentRef Id="LaunchpadServiceComponent" />
-      <ComponentRef Id="DataDirectoryComponent" />
     </Feature>
   </Package>
 </Wix>
