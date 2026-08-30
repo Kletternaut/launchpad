@@ -2,12 +2,13 @@
   <PropertyGroup>
     <OutputName>Kletternaut.Launchpad</OutputName>
     <InstallerPlatform>x64</InstallerPlatform>
-    <DefineConstants>PayloadRoot=$(PayloadRoot)</DefineConstants>
-    <DefineConstants Condition="'$(ProductVersion)' != ''">$(DefineConstants);ProductVersion=$(ProductVersion)</DefineConstants>
-    <DefineConstants Condition="'$(ProductVersion)' == ''">$(DefineConstants);ProductVersion=0.1.0.0</DefineConstants>
+    <ProductVersion Condition="'$(ProductVersion)' == ''">0.1.0.0</ProductVersion>
   </PropertyGroup>
 
   <ItemGroup>
+    <BindPath Include="$(PayloadRoot)">
+      <BindName>PayloadRoot</BindName>
+    </BindPath>
     <PackageReference Include="WixToolset.UI.wixext" Version="7.0.0" />
     <PackageReference Include="WixToolset.Util.wixext" Version="7.0.0" />
   </ItemGroup>
