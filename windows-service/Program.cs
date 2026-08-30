@@ -36,7 +36,8 @@ public sealed class LaunchpadWorker : BackgroundService
             Environment.GetEnvironmentVariable("LAUNCHPAD_DATA_DIR"));
         var restartDelay = Math.Max(1, _configuration.GetValue("Launchpad:RestartDelaySeconds", 5));
         var maxRestarts = Math.Max(0, _configuration.GetValue("Launchpad:MaxRestarts", 10));
-        var restarts = 0;
+        var stableRuntimeSeconds = Math.Max(1, _configuration.GetValue("Launchpad:StableRuntimeSeconds", 60));
+        var consecutiveRestarts = 0;
 
         Directory.CreateDirectory(dataDirectory);
         _log.LogInformation("Launchpad service starting. ApplicationDirectory={ApplicationDirectory}, DataDirectory={DataDirectory}", applicationDirectory, dataDirectory);
@@ -67,24 +68,28 @@ public sealed class LaunchpadWorker : BackgroundService
                 if (!_child.Start()) throw new InvalidOperationException("Could not start Launchpad Node process.");
                 _child.BeginOutputReadLine();
                 _child.BeginErrorReadLine();
+                var startedAt = Stopwatch.GetTimestamp();
                 _log.LogInformation("Launchpad Node process started with PID {Pid}.", _child.Id);
-                restarts = 0;
 
                 await _child.WaitForExitAsync(stoppingToken);
                 if (stoppingToken.IsCancellationRequested) break;
 
                 var exitCode = _child.ExitCode;
-                restarts++;
-                _log.LogWarning("Launchpad process exited with code {ExitCode}. Restart {Restart}/{MaxRestarts}.", exitCode, restarts, maxRestarts);
-                if (restarts > maxRestarts) break;
+                var uptime = Stopwatch.GetElapsedTime(startedAt);
+                if (uptime >= TimeSpan.FromSeconds(stableRuntimeSeconds))
+                    consecutiveRestarts = 0;
+
+                consecutiveRestarts++;
+                _log.LogWarning("Launchpad process exited with code {ExitCode} after {Uptime}. Restart {Restart}/{MaxRestarts}.", exitCode, uptime, consecutiveRestarts, maxRestarts);
+                if (consecutiveRestarts > maxRestarts) break;
                 await Task.Delay(TimeSpan.FromSeconds(restartDelay), stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception ex)
             {
-                restarts++;
-                _log.LogError(ex, "Launchpad supervisor failure. Restart {Restart}/{MaxRestarts}.", restarts, maxRestarts);
-                if (restarts > maxRestarts) break;
+                consecutiveRestarts++;
+                _log.LogError(ex, "Launchpad supervisor failure. Restart {Restart}/{MaxRestarts}.", consecutiveRestarts, maxRestarts);
+                if (consecutiveRestarts > maxRestarts) break;
                 await Task.Delay(TimeSpan.FromSeconds(restartDelay), stoppingToken);
             }
             finally
