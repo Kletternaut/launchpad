@@ -34,6 +34,7 @@
     <DirectoryRef Id="INSTALLFOLDER">
       <Component Id="LaunchpadServiceComponent" Guid="*">
         <File Id="LaunchpadServiceExe" Source="!(bindpath.PayloadRoot)\service\LaunchpadService.exe" KeyPath="yes" />
+        <File Id="LaunchpadServiceConfig" Source="!(bindpath.PayloadRoot)\service\appsettings.json" />
         <ServiceInstall
             Id="LaunchpadServiceInstall"
             Name="KletternautLaunchpad"
