@@ -44,3 +44,11 @@ cache/
 temp/
 test_album/
 *.bat
+
+# Windows packaging outputs
+payload/
+windows-service/installer/build/
+windows-service/installer/bin/
+windows-service/installer/obj/
+windows-service/bin/
+windows-service/obj/
