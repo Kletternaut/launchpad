@@ -31,7 +31,9 @@ public sealed class LaunchpadWorker : BackgroundService
         var applicationDirectory = ResolvePath(_configuration["Launchpad:ApplicationDirectory"] ?? throw new InvalidOperationException("Launchpad:ApplicationDirectory is not configured."), serviceBase);
         var nodeExecutable = ResolvePath(_configuration["Launchpad:NodeExecutable"] ?? throw new InvalidOperationException("Launchpad:NodeExecutable is not configured."), serviceBase);
         var arguments = _configuration["Launchpad:Arguments"] ?? throw new InvalidOperationException("Launchpad:Arguments is not configured.");
-        var dataDirectory = ResolveDataDirectory(_configuration["Launchpad:DataDirectory"]);
+        var dataDirectory = ResolveDataDirectory(
+            _configuration["Launchpad:DataDirectory"],
+            Environment.GetEnvironmentVariable("LAUNCHPAD_DATA_DIR"));
         var restartDelay = Math.Max(1, _configuration.GetValue("Launchpad:RestartDelaySeconds", 5));
         var maxRestarts = Math.Max(0, _configuration.GetValue("Launchpad:MaxRestarts", 10));
         var restarts = 0;
@@ -112,13 +114,19 @@ public sealed class LaunchpadWorker : BackgroundService
         return Path.GetFullPath(Path.Combine(serviceBase, expanded));
     }
 
-    private static string ResolveDataDirectory(string? configured)
+    private static string ResolveDataDirectory(string? configured, string? environmentOverride)
     {
-        if (string.IsNullOrWhiteSpace(configured))
-            throw new InvalidOperationException("Launchpad:DataDirectory is not configured.");
+        var selected = !string.IsNullOrWhiteSpace(environmentOverride) ? environmentOverride : configured;
+        if (!string.IsNullOrWhiteSpace(selected))
+        {
+            var expanded = Environment.ExpandEnvironmentVariables(selected);
+            if (Path.IsPathRooted(expanded)) return Path.GetFullPath(expanded);
+            return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, expanded));
+        }
 
-        var expanded = Environment.ExpandEnvironmentVariables(configured);
-        if (Path.IsPathRooted(expanded)) return Path.GetFullPath(expanded);
-        return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, expanded));
+        var commonAppData = Environment.GetFolderPath(
+            Environment.SpecialFolder.CommonApplicationData,
+            Environment.SpecialFolderOption.Create);
+        return Path.GetFullPath(Path.Combine(commonAppData, "Kletternaut", "Launchpad", "data"));
     }
 }
