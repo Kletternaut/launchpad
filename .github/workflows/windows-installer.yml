@@ -1,0 +1,90 @@
+name: Windows MSI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - sw-wetter-lan-windows
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 24.20.0
+  DOTNET_VERSION: 10.0.x
+  WIX_VERSION: 7.0.0
+
+jobs:
+  build-msi:
+    runs-on: windows-2025
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Install dependencies
+        shell: pwsh
+        run: npm ci
+
+      - name: Build client and server
+        run: npm run build
+
+      - name: Remove development dependencies
+        shell: pwsh
+        run: npm prune --omit=dev
+
+      - name: Run server tests
+        run: npm test
+
+      - name: Publish Windows service
+        shell: pwsh
+        run: dotnet publish windows-service/LaunchpadService.csproj -c Release -r win-x64 --self-contained true -o "$env:GITHUB_WORKSPACE/payload/service"
+
+      - name: Prepare application payload
+        shell: pwsh
+        run: |
+          $payload = Join-Path $env:GITHUB_WORKSPACE 'payload'
+          New-Item -ItemType Directory -Force -Path "$payload/app/client", "$payload/app/server", "$payload/runtime" | Out-Null
+          Copy-Item -Recurse -Force client/dist "$payload/app/client"
+          Copy-Item -Recurse -Force server/dist "$payload/app/server"
+          Copy-Item -Recurse -Force server/node_modules "$payload/app/server/node_modules"
+          Copy-Item server/package.json "$payload/app/server/package.json"
+
+      - name: Download pinned Node.js runtime
+        shell: pwsh
+        run: |
+          $version = $env:NODE_VERSION
+          $archive = "node-v$version-win-x64.zip"
+          $url = "https://nodejs.org/download/release/v$version/$archive"
+          $shaUrl = "https://nodejs.org/download/release/v$version/SHASUMS256.txt"
+          $zip = Join-Path $env:RUNNER_TEMP $archive
+          $shaFile = Join-Path $env:RUNNER_TEMP 'SHASUMS256.txt'
+          Invoke-WebRequest -Uri $url -OutFile $zip
+          Invoke-WebRequest -Uri $shaUrl -OutFile $shaFile
+          $expected = (Select-String -Path $shaFile -Pattern [regex]::Escape($archive)).Line.Split(' ')[0]
+          $actual = (Get-FileHash -Algorithm SHA256 -Path $zip).Hash.ToLowerInvariant()
+          if ($actual -ne $expected.ToLowerInvariant()) { throw "Node.js archive checksum mismatch." }
+          Expand-Archive -Path $zip -DestinationPath $env:RUNNER_TEMP/node-runtime
+          Copy-Item "$env:RUNNER_TEMP/node-runtime/node-v$version-win-x64/node.exe" "$env:GITHUB_WORKSPACE/payload/runtime/node.exe"
+
+      - name: Build MSI
+        shell: pwsh
+        run: dotnet build windows-service/installer/LaunchpadInstaller.wixproj -c Release -p:PayloadRoot="$env:GITHUB_WORKSPACE/payload" -p:InstallerPlatform=x64
+
+      - name: Upload MSI
+        uses: actions/upload-artifact@v7
+        with:
+          name: Kletternaut-Launchpad-Windows-x64-MSI
+          path: windows-service/installer/bin/**/*.msi
+          if-no-files-found: error
