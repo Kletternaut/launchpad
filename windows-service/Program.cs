@@ -44,6 +44,7 @@ public sealed class LaunchpadWorker : BackgroundService
 
         while (!stoppingToken.IsCancellationRequested)
         {
+            Process? child = null;
             try
             {
                 var psi = new ProcessStartInfo
@@ -57,24 +58,31 @@ public sealed class LaunchpadWorker : BackgroundService
                     CreateNoWindow = true,
                 };
 
-                foreach (var child in _configuration.GetSection("Launchpad:Environment").GetChildren())
-                    psi.Environment[child.Key] = child.Value ?? string.Empty;
+                foreach (var setting in _configuration.GetSection("Launchpad:Environment").GetChildren())
+                    psi.Environment[setting.Key] = setting.Value ?? string.Empty;
                 psi.Environment["DATA_DIR"] = dataDirectory;
 
-                _child = new Process { StartInfo = psi, EnableRaisingEvents = true };
-                _child.OutputDataReceived += (_, e) => { if (e.Data != null) _log.LogInformation("{Line}", e.Data); };
-                _child.ErrorDataReceived += (_, e) => { if (e.Data != null) _log.LogError("{Line}", e.Data); };
+                child = new Process { StartInfo = psi, EnableRaisingEvents = true };
+                child.OutputDataReceived += (_, e) => { if (e.Data != null) _log.LogInformation("{Line}", e.Data); };
+                child.ErrorDataReceived += (_, e) => { if (e.Data != null) _log.LogError("{Line}", e.Data); };
+                _child = child;
 
-                if (!_child.Start()) throw new InvalidOperationException("Could not start Launchpad Node process.");
-                _child.BeginOutputReadLine();
-                _child.BeginErrorReadLine();
+                if (!child.Start()) throw new InvalidOperationException("Could not start Launchpad Node process.");
+                child.BeginOutputReadLine();
+                child.BeginErrorReadLine();
                 var startedAt = Stopwatch.GetTimestamp();
-                _log.LogInformation("Launchpad Node process started with PID {Pid}.", _child.Id);
+                _log.LogInformation("Launchpad Node process started with PID {Pid}.", child.Id);
 
-                await _child.WaitForExitAsync(stoppingToken);
-                if (stoppingToken.IsCancellationRequested) break;
+                try
+                {
+                    await child.WaitForExitAsync(stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
 
-                var exitCode = _child.ExitCode;
+                var exitCode = child.ExitCode;
                 var uptime = Stopwatch.GetElapsedTime(startedAt);
                 if (uptime >= TimeSpan.FromSeconds(stableRuntimeSeconds))
                     consecutiveRestarts = 0;
@@ -84,7 +92,10 @@ public sealed class LaunchpadWorker : BackgroundService
                 if (consecutiveRestarts > maxRestarts) break;
                 await Task.Delay(TimeSpan.FromSeconds(restartDelay), stoppingToken);
             }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
             catch (Exception ex)
             {
                 consecutiveRestarts++;
@@ -94,21 +105,30 @@ public sealed class LaunchpadWorker : BackgroundService
             }
             finally
             {
-                _child?.Dispose();
-                _child = null;
+                if (!stoppingToken.IsCancellationRequested && ReferenceEquals(_child, child))
+                    _child = null;
+
+                if (!stoppingToken.IsCancellationRequested)
+                    child?.Dispose();
             }
         }
 
+        var childToStop = _child;
+        _child = null;
         try
         {
-            if (_child is { HasExited: false })
+            if (childToStop is { HasExited: false })
             {
-                _log.LogInformation("Stopping Launchpad Node process PID {Pid}.", _child.Id);
-                _child.Kill(entireProcessTree: true);
-                await _child.WaitForExitAsync(CancellationToken.None);
+                _log.LogInformation("Stopping Launchpad Node process PID {Pid}.", childToStop.Id);
+                childToStop.Kill(entireProcessTree: true);
+                await childToStop.WaitForExitAsync(CancellationToken.None);
             }
         }
         catch (Exception ex) { _log.LogWarning(ex, "Could not cleanly stop Launchpad child process."); }
+        finally
+        {
+            childToStop?.Dispose();
+        }
         _log.LogInformation("Launchpad service stopped.");
     }
 
