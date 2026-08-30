@@ -12,6 +12,7 @@ permissions:
 env:
   NODE_VERSION: 24.20.0
   DOTNET_SDK_VERSION: 10.0.400
+  LAUNCHPAD_VERSION: 0.1.1.0
 
 jobs:
   build-msi:
@@ -75,7 +76,7 @@ jobs:
           foreach ($path in @("$payload/app/server/dist/index.js","$payload/app/server/node_modules/sql.js/package.json","$payload/app/client/dist/index.html","$payload/runtime/node.exe","$payload/service/LaunchpadService.exe","$payload/service/appsettings.json")) { if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Required payload file is missing: $path" } }
       - name: Build MSI
         shell: pwsh
-        run: dotnet build windows-service/installer/LaunchpadInstaller.wixproj -c Release -p:PayloadRoot="$env:GITHUB_WORKSPACE/payload" -p:InstallerPlatform=x64 -p:ProductVersion=0.1.1.0
+        run: dotnet build windows-service/installer/LaunchpadInstaller.wixproj -c Release -p:PayloadRoot="$env:GITHUB_WORKSPACE/payload" -p:InstallerPlatform=x64 -p:ProductVersion=$env:LAUNCHPAD_VERSION
       - name: Upload MSI
         uses: actions/upload-artifact@v7
         with:
