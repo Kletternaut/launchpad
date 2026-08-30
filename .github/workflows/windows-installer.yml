@@ -12,7 +12,6 @@ permissions:
 env:
   NODE_VERSION: 24.20.0
   DOTNET_VERSION: 10.0.x
-  WIX_VERSION: 7.0.0
 
 jobs:
   build-msi:
@@ -40,12 +39,12 @@ jobs:
       - name: Build client and server
         run: npm run build
 
+      - name: Run server tests
+        run: npm test
+
       - name: Remove development dependencies
         shell: pwsh
         run: npm prune --omit=dev
-
-      - name: Run server tests
-        run: npm test
 
       - name: Publish Windows service
         shell: pwsh
@@ -80,7 +79,7 @@ jobs:
 
       - name: Build MSI
         shell: pwsh
-        run: dotnet build windows-service/installer/LaunchpadInstaller.wixproj -c Release -p:PayloadRoot="$env:GITHUB_WORKSPACE/payload" -p:InstallerPlatform=x64
+        run: dotnet build windows-service/installer/LaunchpadInstaller.wixproj -c Release -p:PayloadRoot="$env:GITHUB_WORKSPACE/payload" -p:InstallerPlatform=x64 -p:ProductVersion=0.1.0.0
 
       - name: Upload MSI
         uses: actions/upload-artifact@v7
